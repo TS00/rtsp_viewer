@@ -1,7 +1,7 @@
 cameras:
-  - id: "camera1"
+  - id: "Yard"
     url: "rtsp://10.0.0.192/h264_stream"
-  - id: "camera2"
+  - id: "Backdoor"
     url: "rtsp://admin:admin1@10.0.0.153:554/h264Preview_01_main"
-  - id: "camera3"
+  - id: "Frontdoor"
     url: "rtsp://:@10.0.0.218/h264_stream"
