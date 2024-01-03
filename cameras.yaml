@@ -1,0 +1,7 @@
+cameras:
+  - id: "camera1"
+    url: "rtsp://10.0.0.192/h264_stream"
+  - id: "camera2"
+    url: "rtsp://admin:admin1@10.0.0.153:554/h264Preview_01_main"
+  - id: "camera3"
+    url: "rtsp://:@10.0.0.218/h264_stream"
