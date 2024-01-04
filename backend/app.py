@@ -6,10 +6,11 @@ from threading import Thread, Lock
 import time
 import logging
 
-app = Flask(__name__)
-
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)  # Set to DEBUG to get detailed logs
+logger = logging.getLogger(__name__)  # Create a logger for your application
+
+app = Flask(__name__)
 
 # Load camera configurations from YAML file
 def load_camera_configs(filename):
@@ -24,17 +25,17 @@ config = load_camera_configs(config_path)
 camera_streams = {}
 lock = Lock()
 
-
-
 def init_camera_stream(url):
+    logger.debug(f"Initializing camera stream: {url}")
     cap = cv2.VideoCapture(url)
     while not cap.isOpened():
-        print(f"Waiting for camera stream at {url}...")
+        logger.info(f"Waiting for camera stream at {url}...")
         time.sleep(5)
         cap = cv2.VideoCapture(url)
     return cap
 
 def maintain_camera_stream(camera_id, url):
+    logger.debug(f"Maintaining camera stream for ID: {camera_id}, URL: {url}")
     global camera_streams
     while True:
         with lock:
@@ -43,6 +44,7 @@ def maintain_camera_stream(camera_id, url):
         time.sleep(10)
 
 for cam in config['cameras']:
+    logger.info(f"Starting stream for camera: {cam['id']}")
     stream = init_camera_stream(cam['url'])
     camera_streams[cam['id']] = stream
     t = Thread(target=maintain_camera_stream, args=(cam['id'], cam['url']))
@@ -62,6 +64,7 @@ def generate_frame(camera_id):
             with lock:
                 success, frame = camera_streams[camera_id].read()
                 if not success:
+                    logger.debug(f"No frame read from camera {camera_id}")
                     time.sleep(0.1)
                     continue
             ret, buffer = cv2.imencode('.jpg', frame)
@@ -71,31 +74,30 @@ def generate_frame(camera_id):
 
             last_time = time.time()
         except Exception as e:
-            logging.error(f"Error generating frame for camera {camera_id}: {e}")
-            time.sleep(1)
-
-
+            logger.exception(f"Error generating frame for camera {camera_id}")
 
 @app.route('/stream/<int:camera_id>')
 def video_feed(camera_id):
+    logger.info(f"Video feed requested for camera: {camera_id}")
     return Response(generate_frame(camera_id),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route('/cameras')
 def camera_list():
-    # Extracting just the id and name from each camera in the configuration
+    logger.info("Camera list requested")
     camera_info = [{"id": cam["id"], "name": cam["name"]} for cam in config['cameras']]
     return jsonify(camera_info)
 
 @app.route('/')
 def index():
+    logger.info("Index page requested")
     return render_template('index.html', cameras=config['cameras'])
 
 def run():
+    logger.info("Starting Flask app on host 0.0.0.0 at port 5000")
     app.run(host='0.0.0.0', port=5000, threaded=True)
 
 if __name__ == '__main__':
-    logging.info("Starting Flask app...")
     server_thread = Thread(target=run)
     server_thread.daemon = True
     server_thread.start()
