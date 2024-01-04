@@ -35,13 +35,16 @@ def init_camera_stream(url):
     return cap
 
 def maintain_camera_stream(camera_id, url):
-    logger.debug(f"Maintaining camera stream for ID: {camera_id}, URL: {url}")
     global camera_streams
-    while True:
-        with lock:
-            if not camera_streams[camera_id].isOpened():
-                camera_streams[camera_id] = init_camera_stream(url)
-        time.sleep(10)
+    try:
+        while True:
+            with lock:
+                if not camera_streams[camera_id].isOpened():
+                    camera_streams[camera_id] = init_camera_stream(url)
+            time.sleep(10)
+    except Exception as e:
+        logger.exception(f"Exception in maintain_camera_stream for camera {camera_id}: {e}")
+
 
 for cam in config['cameras']:
     logger.info(f"Starting stream for camera: {cam['id']}")
@@ -97,7 +100,11 @@ def run():
     logger.info("Starting Flask app on host 0.0.0.0 at port 5000")
     app.run(host='0.0.0.0', port=5000, threaded=True)
 
+# if __name__ == '__main__':
+#     server_thread = Thread(target=run)
+#     server_thread.daemon = True
+#     server_thread.start()
+
 if __name__ == '__main__':
-    server_thread = Thread(target=run)
-    server_thread.daemon = True
-    server_thread.start()
+    logger.info("Starting Flask app...")
+    app.run(host='0.0.0.0', port=5000, debug=True, threaded=True)
