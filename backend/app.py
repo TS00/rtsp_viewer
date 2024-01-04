@@ -50,8 +50,15 @@ for cam in config['cameras']:
     t.start()
 
 def generate_frame(camera_id):
+    frame_interval = 1 / 10  # Limit to 10 frames per second
+    last_time = time.time()
+
     while True:
         try:
+            current_time = time.time()
+            if current_time - last_time < frame_interval:
+                continue
+
             with lock:
                 success, frame = camera_streams[camera_id].read()
                 if not success:
@@ -61,9 +68,12 @@ def generate_frame(camera_id):
             frame = buffer.tobytes()
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
+            last_time = time.time()
         except Exception as e:
             logging.error(f"Error generating frame for camera {camera_id}: {e}")
             time.sleep(1)
+
 
 
 @app.route('/stream/<int:camera_id>')
