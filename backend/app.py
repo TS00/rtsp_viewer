@@ -4,8 +4,12 @@ import yaml
 import os
 from threading import Thread, Lock
 import time
+import logging
 
 app = Flask(__name__)
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 
 # Load camera configurations from YAML file
 def load_camera_configs(filename):
@@ -19,6 +23,8 @@ config = load_camera_configs(config_path)
 # Initialize camera streams
 camera_streams = {}
 lock = Lock()
+
+
 
 def init_camera_stream(url):
     cap = cv2.VideoCapture(url)
@@ -45,15 +51,20 @@ for cam in config['cameras']:
 
 def generate_frame(camera_id):
     while True:
-        with lock:
-            success, frame = camera_streams[camera_id].read()
-            if not success:
-                time.sleep(0.1)
-                continue
-        ret, buffer = cv2.imencode('.jpg', frame)
-        frame = buffer.tobytes()
-        yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+        try:
+            with lock:
+                success, frame = camera_streams[camera_id].read()
+                if not success:
+                    time.sleep(0.1)
+                    continue
+            ret, buffer = cv2.imencode('.jpg', frame)
+            frame = buffer.tobytes()
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+        except Exception as e:
+            logging.error(f"Error generating frame for camera {camera_id}: {e}")
+            time.sleep(1)
+
 
 @app.route('/stream/<int:camera_id>')
 def video_feed(camera_id):
@@ -74,6 +85,7 @@ def run():
     app.run(host='0.0.0.0', port=5000, threaded=True)
 
 if __name__ == '__main__':
+    logging.info("Starting Flask app...")
     server_thread = Thread(target=run)
     server_thread.daemon = True
     server_thread.start()
